@@ -9,6 +9,7 @@ import java.io.File
  * /X/versions/<id>/<id>.jar
  * /X/versions/<id>/<id>.json
  * /X/libraries/...
+ * /X/libraries/lwjgl3-natives/<arch>/...
  * /X/assets/...
  * /X/runtime/<javaVersion>/...
  */
@@ -45,17 +46,27 @@ class VersionInstaller(private val xRoot: File) {
             FileUtils.downloadFile(clientDl.getString("url"), jarFile, clientDl.getString("sha1"))
             File(versionDir, "$versionId.json").writeText(versionJson.toString())
 
-            // 2. Libraries (includes LWJGL natives for the right platform)
-            listener.onStep("Downloading libraries + LWJGL natives")
+            // 2. Libraries (Mojang libs only — LWJGL natives are handled separately below,
+            //    since Android needs a custom-built LWJGL fork, not stock desktop natives)
+            listener.onStep("Downloading libraries")
             downloadLibraries(versionJson, listener)
+
+            // 2b. LWJGL natives for this device's architecture
+            listener.onStep("Downloading LWJGL natives")
+            LWJGLManager(xRoot).ensureNatives(listener)
 
             // 3. Java runtime
             listener.onStep("Downloading Java runtime")
             downloadJavaRuntime(versionJson, listener)
 
-            // 4. Assets (sounds, textures index)
+            // 4. Asset index
             listener.onStep("Downloading assets index")
             downloadAssetIndex(versionJson, listener)
+
+            // 4b. Actual asset objects (sounds, textures) referenced by the index
+            listener.onStep("Downloading asset objects")
+            val assetIndexId = versionJson.getJSONObject("assetIndex").getString("id")
+            AssetDownloader(xRoot).downloadObjects(assetIndexId, listener)
 
             listener.onComplete()
         } catch (e: Exception) {
@@ -81,33 +92,20 @@ class VersionInstaller(private val xRoot: File) {
                 FileUtils.downloadFile(artifact.getString("url"), dest, artifact.optString("sha1", null))
             }
 
-            downloads.optJSONObject("classifiers")?.let { classifiers ->
-                // natives-linux / native ARM LWJGL builds go here
-                val nativesKey = classifiers.keys().asSequence().firstOrNull { it.contains("linux") || it.contains("arm") }
-                nativesKey?.let { key ->
-                    val native = classifiers.getJSONObject(key)
-                    val path = native.getString("path")
-                    val dest = File(libRoot, path)
-                    FileUtils.downloadFile(native.getString("url"), dest, native.optString("sha1", null))
-                }
-            }
             listener.onProgress((i * 100) / libs.length())
         }
     }
 
     private fun appliesToAndroidArm(lib: JSONObject): Boolean {
         val rules = lib.optJSONArray("rules") ?: return true
-        // Simplified rule evaluation — refined later once we wire in
-        // the actual ARM/Android native-selection logic in Part 3.
+        // Simplified rule evaluation — refined once full OS/arch rule
+        // matching is wired in during the mod-loader part.
         return true
     }
 
     private fun downloadJavaRuntime(versionJson: JSONObject, listener: ProgressListener) {
-        // Java runtime component name (e.g. java-runtime-gamma)
         val javaVersion = versionJson.optJSONObject("javaVersion")
         val component = javaVersion?.optString("component") ?: "jre-legacy"
-        // Full ARM64 JRE fetching is handled by RuntimeManager in Part 3 —
-        // placeholder call kept here so install() has one entry point.
         RuntimeManager(xRoot).ensureRuntime(component, listener)
     }
 
@@ -115,7 +113,5 @@ class VersionInstaller(private val xRoot: File) {
         val assetIndex = versionJson.getJSONObject("assetIndex")
         val dest = File(xRoot, "assets/indexes/${assetIndex.getString("id")}.json")
         FileUtils.downloadFile(assetIndex.getString("url"), dest, assetIndex.optString("sha1", null))
-        // Full per-object asset download (sounds/textures) added in Part 3
-        // to keep this part focused on the core install flow.
     }
 }
