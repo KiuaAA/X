@@ -14,6 +14,7 @@ import com.x.client.XClientService
 import com.x.client.launch.LaunchProfile
 import com.x.launcher.state.LaunchViewModel
 import com.x.launcher.state.VersionListItem
+import com.x.launcher.ui.screens.AccountScreen
 import com.x.launcher.ui.screens.HomeScreen
 import com.x.launcher.ui.screens.HomeUiState
 import com.x.launcher.ui.screens.LaunchScreen
@@ -22,7 +23,7 @@ import com.x.launcher.ui.screens.VersionPickerScreen
 import com.x.launcher.ui.theme.XTheme
 import java.io.File
 
-private enum class Screen { HOME, VERSION_PICKER, MODS, LAUNCH }
+private enum class Screen { HOME, VERSION_PICKER, MODS, LAUNCH, ACCOUNT }
 
 class MainActivity : ComponentActivity() {
 
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
                         ),
                         onOpenVersionPicker = { screen = Screen.VERSION_PICKER },
                         onOpenFiles = { screen = Screen.MODS },
+                        onEditProfile = { screen = Screen.ACCOUNT },
                         onPlay = {
                             val version = selectedVersion
                             val service = clientService
@@ -109,6 +111,18 @@ class MainActivity : ComponentActivity() {
                         viewModel = launchViewModel,
                         onBack = { screen = Screen.HOME }
                     )
+
+                    Screen.ACCOUNT -> {
+                        val service = clientService
+                        if (service != null) {
+                            AccountScreen(
+                                xRoot = service.getXRoot(),
+                                onBack = { screen = Screen.HOME }
+                            )
+                        } else {
+                            screen = Screen.HOME
+                        }
+                    }
                 }
             }
         }
