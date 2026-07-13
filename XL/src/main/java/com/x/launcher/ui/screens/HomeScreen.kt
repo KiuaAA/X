@@ -6,7 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,11 +20,13 @@ import com.x.launcher.ui.theme.XCream
 import com.x.launcher.ui.theme.XTextOnCream
 
 data class HomeUiState(
-    val playerName: String = "kiua",
+    val playerName: String = "Guest",
     val playerUuid: String = "00000000-0000-0000-0000-000000000000",
-    val githubLinked: Boolean = true,
-    val selectedVersionLabel: String = "26.2",
-    val selectedVersionNumber: String = "00"
+    val githubLinked: Boolean = false,
+    val selectedVersionLabel: String = "Select a version",
+    val selectedVersionNumber: String = "--",
+    val hasAccount: Boolean = false,
+    val hasVersion: Boolean = false
 )
 
 @Composable
@@ -38,13 +40,14 @@ fun HomeScreen(
     onOpenSettings: () -> Unit = {},
     onPlay: () -> Unit = {}
 ) {
+    var blockedMessage by remember { mutableStateOf<String?>(null) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
             .padding(24.dp)
     ) {
-        // Top-left player pill
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -58,7 +61,6 @@ fun HomeScreen(
             Text(state.playerName, color = XTextOnCream, fontWeight = FontWeight.Bold)
         }
 
-        // Top-right icon row
         Row(
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             modifier = Modifier.align(Alignment.TopEnd)
@@ -77,10 +79,8 @@ fun HomeScreen(
             }
         }
 
-        // Center logo
         XLogo(modifier = Modifier.align(Alignment.Center))
 
-        // Right-side account/play card
         Card(
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = XCream),
@@ -102,7 +102,7 @@ fun HomeScreen(
                     state.playerName.uppercase(),
                     color = XTextOnCream,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp()
+                    fontSize = 22.sp
                 )
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -116,7 +116,7 @@ fun HomeScreen(
                     Text(
                         if (state.githubLinked) "GITHUB account" else "Not linked",
                         color = XTextOnCream,
-                        fontSize = 13.sp()
+                        fontSize = 13.sp
                     )
                 }
                 Spacer(Modifier.height(14.dp))
@@ -133,7 +133,10 @@ fun HomeScreen(
 
                 Spacer(Modifier.weight(1f))
 
-                // Version selector
+                blockedMessage?.let {
+                    Text(it, color = Color(0xFFB00020), fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -147,7 +150,7 @@ fun HomeScreen(
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(state.selectedVersionNumber, color = Color.White, fontWeight = FontWeight.Bold)
-                        Text(state.selectedVersionLabel, color = Color.LightGray, fontSize = 12.sp())
+                        Text(state.selectedVersionLabel, color = Color.LightGray, fontSize = 12.sp)
                     }
                     Spacer(Modifier.weight(1f))
                     Text("Version", color = Color.White)
@@ -158,21 +161,26 @@ fun HomeScreen(
                 Spacer(Modifier.height(14.dp))
 
                 Button(
-                    onClick = onPlay,
+                    onClick = {
+                        blockedMessage = when {
+                            !state.hasAccount -> "Tap Edit Profile to sign in or pick an offline profile first"
+                            !state.hasVersion -> "Tap Version to pick a Minecraft version first"
+                            else -> null
+                        }
+                        if (blockedMessage == null) onPlay()
+                    },
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = XCardBlack),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
                 ) {
-                    Text("Play", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp())
+                    Text("Play", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             }
         }
     }
 }
 
-// Small local helpers to keep imports short above
-private fun Int.sp() = androidx.compose.ui.unit.TextUnit(this.toFloat(), androidx.compose.ui.unit.TextUnitType.Sp)
 private fun Modifier.clickableRow(onClick: () -> Unit): Modifier =
     this.then(androidx.compose.foundation.clickable(onClick = onClick))
