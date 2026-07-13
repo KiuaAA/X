@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.x.client.XClientService
 import com.x.client.launch.LaunchProfile
+import com.x.launcher.state.AccountViewModel
 import com.x.launcher.state.LaunchViewModel
 import com.x.launcher.state.VersionListItem
 import com.x.launcher.ui.screens.AccountScreen
@@ -53,37 +54,60 @@ class MainActivity : ComponentActivity() {
             XTheme {
                 var screen by remember { mutableStateOf(Screen.HOME) }
                 var selectedVersion by remember { mutableStateOf<VersionListItem?>(null) }
+                var serviceReady by remember { mutableStateOf(false) }
+
+                // Poll until the bound service is attached, so we can build
+                // xRoot-dependent ViewModels exactly once, shared across all screens.
+                LaunchedEffect(bound) {
+                    if (bound) serviceReady = true
+                }
+
+                if (!serviceReady || clientService == null) {
+                    return@XTheme
+                }
+
+                val xRoot = remember { clientService!!.getXRoot() }
+                val accountViewModel: AccountViewModel = viewModel { AccountViewModel(xRoot) }
                 val launchViewModel: LaunchViewModel = viewModel()
 
+                LaunchedEffect(Unit) { accountViewModel.loadOfflineProfiles() }
+
                 when (screen) {
-                    Screen.HOME -> HomeScreen(
-                        state = HomeUiState(
-                            selectedVersionLabel = selectedVersion?.id ?: "Select a version",
-                            selectedVersionNumber = selectedVersion?.type ?: "--"
-                        ),
-                        onOpenVersionPicker = { screen = Screen.VERSION_PICKER },
-                        onOpenFiles = { screen = Screen.MODS },
-                        onEditProfile = { screen = Screen.ACCOUNT },
-                        onPlay = {
-                            val version = selectedVersion
-                            val service = clientService
-                            if (version != null && service != null) {
-                                val profile = LaunchProfile(
-                                    playerName = "kiua",
-                                    uuid = "00000000-0000-0000-0000-000000000000",
-                                    accessToken = "0",
-                                    versionId = version.id
-                                )
-                                screen = Screen.LAUNCH
-                                launchViewModel.start(
-                                    clientService = service,
-                                    profile = profile,
-                                    javaMajor = 17,
-                                    rendererJvmArg = "-Dorg.lwjgl.opengl.libname=libgl4es.so"
-                                )
+                    Screen.HOME -> {
+                        val active = accountViewModel.activeProfile
+                        HomeScreen(
+                            state = HomeUiState(
+                                playerName = active?.playerName ?: "Guest",
+                                playerUuid = active?.uuid ?: "00000000-0000-0000-0000-000000000000",
+                                githubLinked = accountViewModel.githubUsername != null,
+                                selectedVersionLabel = selectedVersion?.id ?: "Select a version",
+                                selectedVersionNumber = selectedVersion?.type ?: "--"
+                            ),
+                            onOpenVersionPicker = { screen = Screen.VERSION_PICKER },
+                            onOpenFiles = { screen = Screen.MODS },
+                            onEditProfile = { screen = Screen.ACCOUNT },
+                            onPlay = {
+                                val version = selectedVersion
+                                val service = clientService
+                                val account = active
+                                if (version != null && service != null && account != null) {
+                                    val profile = LaunchProfile(
+                                        playerName = account.playerName,
+                                        uuid = account.uuid,
+                                        accessToken = account.accessToken,
+                                        versionId = version.id
+                                    )
+                                    screen = Screen.LAUNCH
+                                    launchViewModel.start(
+                                        clientService = service,
+                                        profile = profile,
+                                        javaMajor = 17,
+                                        rendererJvmArg = "-Dorg.lwjgl.opengl.libname=libgl4es.so"
+                                    )
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
 
                     Screen.VERSION_PICKER -> VersionPickerScreen(
                         onBack = { screen = Screen.HOME },
@@ -95,8 +119,8 @@ class MainActivity : ComponentActivity() {
 
                     Screen.MODS -> {
                         val version = selectedVersion
-                        if (version != null && clientService != null) {
-                            val modsDir = File(clientService!!.getXRoot(), "versions/${version.id}/mods")
+                        if (version != null) {
+                            val modsDir = File(xRoot, "versions/${version.id}/mods")
                             ModManagerScreen(
                                 versionModsDir = modsDir,
                                 onBack = { screen = Screen.HOME },
@@ -112,17 +136,10 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = Screen.HOME }
                     )
 
-                    Screen.ACCOUNT -> {
-                        val service = clientService
-                        if (service != null) {
-                            AccountScreen(
-                                xRoot = service.getXRoot(),
-                                onBack = { screen = Screen.HOME }
-                            )
-                        } else {
-                            screen = Screen.HOME
-                        }
-                    }
+                    Screen.ACCOUNT -> AccountScreen(
+                        xRoot = xRoot,
+                        onBack = { screen = Screen.HOME }
+                    )
                 }
             }
         }
