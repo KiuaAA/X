@@ -21,6 +21,7 @@ import com.x.launcher.state.AccountViewModel
 import com.x.launcher.state.LaunchViewModel
 import com.x.launcher.state.VersionListItem
 import com.x.launcher.ui.screens.AccountScreen
+import com.x.launcher.ui.screens.FileEditorScreen
 import com.x.launcher.ui.screens.HomeScreen
 import com.x.launcher.ui.screens.HomeUiState
 import com.x.launcher.ui.screens.LaunchScreen
@@ -29,7 +30,7 @@ import com.x.launcher.ui.screens.VersionPickerScreen
 import com.x.launcher.ui.theme.XTheme
 import java.io.File
 
-private enum class Screen { HOME, VERSION_PICKER, MODS, LAUNCH, ACCOUNT }
+private enum class Screen { HOME, VERSION_PICKER, MODS, LAUNCH, ACCOUNT, FILE_EDITOR }
 
 class MainActivity : ComponentActivity() {
 
@@ -49,7 +50,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* result ignored — service still runs without it, just silently */ }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -75,6 +76,7 @@ class MainActivity : ComponentActivity() {
             XTheme {
                 var screen by remember { mutableStateOf(Screen.HOME) }
                 var selectedVersion by remember { mutableStateOf<VersionListItem?>(null) }
+                var editingFile by remember { mutableStateOf<File?>(null) }
                 var serviceReady by remember { mutableStateOf(false) }
 
                 LaunchedEffect(bound) {
@@ -145,7 +147,10 @@ class MainActivity : ComponentActivity() {
                             ModManagerScreen(
                                 versionModsDir = modsDir,
                                 onBack = { screen = Screen.HOME },
-                                onEditMod = { /* wired in the file-editor part */ }
+                                onEditMod = { file ->
+                                    editingFile = file
+                                    screen = Screen.FILE_EDITOR
+                                }
                             )
                         } else {
                             screen = Screen.HOME
@@ -161,6 +166,18 @@ class MainActivity : ComponentActivity() {
                         xRoot = xRoot,
                         onBack = { screen = Screen.HOME }
                     )
+
+                    Screen.FILE_EDITOR -> {
+                        val target = editingFile
+                        if (target != null) {
+                            FileEditorScreen(
+                                targetFile = target,
+                                onBack = { screen = Screen.MODS }
+                            )
+                        } else {
+                            screen = Screen.MODS
+                        }
+                    }
                 }
             }
         }
