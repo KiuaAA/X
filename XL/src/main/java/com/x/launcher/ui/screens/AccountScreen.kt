@@ -33,10 +33,10 @@ import java.io.File
 @Composable
 fun AccountScreen(
     xRoot: File,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: AccountViewModel = viewModel { AccountViewModel(xRoot) }
 ) {
     val context = LocalContext.current
-    val viewModel: AccountViewModel = viewModel { AccountViewModel(xRoot) }
 
     var githubCode by remember { mutableStateOf<String?>(null) }
     var githubUri by remember { mutableStateOf<String?>(null) }
@@ -73,7 +73,6 @@ fun AccountScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // Current active profile summary
         viewModel.activeProfile?.let { profile ->
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -98,9 +97,15 @@ fun AccountScreen(
                 }
             }
             Spacer(Modifier.height(20.dp))
+        } ?: run {
+            Text(
+                "No account selected yet — sign in or pick an offline profile below.",
+                color = Color.LightGray,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
 
-        // GitHub identity
         SectionCard(title = "Launcher identity") {
             if (viewModel.githubUsername != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,7 +128,6 @@ fun AccountScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Microsoft login for real online-mode play
         SectionCard(title = "Play on real servers (online-mode)") {
             when (viewModel.msLoginState) {
                 MsLoginState.IDLE -> {
@@ -159,7 +163,6 @@ fun AccountScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Offline profiles
         SectionCard(title = "Offline profiles (LAN / cracked-friendly servers)") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
