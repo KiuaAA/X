@@ -56,8 +56,6 @@ class MainActivity : ComponentActivity() {
                 var selectedVersion by remember { mutableStateOf<VersionListItem?>(null) }
                 var serviceReady by remember { mutableStateOf(false) }
 
-                // Poll until the bound service is attached, so we can build
-                // xRoot-dependent ViewModels exactly once, shared across all screens.
                 LaunchedEffect(bound) {
                     if (bound) serviceReady = true
                 }
@@ -81,7 +79,9 @@ class MainActivity : ComponentActivity() {
                                 playerUuid = active?.uuid ?: "00000000-0000-0000-0000-000000000000",
                                 githubLinked = accountViewModel.githubUsername != null,
                                 selectedVersionLabel = selectedVersion?.id ?: "Select a version",
-                                selectedVersionNumber = selectedVersion?.type ?: "--"
+                                selectedVersionNumber = selectedVersion?.type ?: "--",
+                                hasAccount = active != null,
+                                hasVersion = selectedVersion != null
                             ),
                             onOpenVersionPicker = { screen = Screen.VERSION_PICKER },
                             onOpenFiles = { screen = Screen.MODS },
