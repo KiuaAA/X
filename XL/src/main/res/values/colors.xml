@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="x_black">#FF0A0A0A</color>
+    <color name="x_cream">#FFF3EFA6</color>
+    <color name="x_cream_dim">#FFE9E38C</color>
+    <color name="x_card_black">#FF141414</color>
+    <color name="x_text_on_cream">#FF141414</color>
+    <color name="x_text_on_black">#FFF5F5F5</color>
+</resources>
