@@ -19,6 +19,7 @@ import com.x.client.XClientService
 import com.x.client.launch.LaunchProfile
 import com.x.launcher.state.AccountViewModel
 import com.x.launcher.state.LaunchViewModel
+import com.x.launcher.state.SettingsViewModel
 import com.x.launcher.state.VersionListItem
 import com.x.launcher.ui.screens.AccountScreen
 import com.x.launcher.ui.screens.FileEditorScreen
@@ -26,11 +27,12 @@ import com.x.launcher.ui.screens.HomeScreen
 import com.x.launcher.ui.screens.HomeUiState
 import com.x.launcher.ui.screens.LaunchScreen
 import com.x.launcher.ui.screens.ModManagerScreen
+import com.x.launcher.ui.screens.SettingsScreen
 import com.x.launcher.ui.screens.VersionPickerScreen
 import com.x.launcher.ui.theme.XTheme
 import java.io.File
 
-private enum class Screen { HOME, VERSION_PICKER, MODS, LAUNCH, ACCOUNT, FILE_EDITOR }
+private enum class Screen { HOME, VERSION_PICKER, MODS, LAUNCH, ACCOUNT, FILE_EDITOR, SETTINGS }
 
 class MainActivity : ComponentActivity() {
 
@@ -90,6 +92,7 @@ class MainActivity : ComponentActivity() {
                 val xRoot = remember { clientService!!.getXRoot() }
                 val accountViewModel: AccountViewModel = viewModel { AccountViewModel(xRoot) }
                 val launchViewModel: LaunchViewModel = viewModel()
+                val settingsViewModel: SettingsViewModel = viewModel { SettingsViewModel(xRoot) }
 
                 LaunchedEffect(Unit) { accountViewModel.loadOfflineProfiles() }
 
@@ -109,6 +112,7 @@ class MainActivity : ComponentActivity() {
                             onOpenVersionPicker = { screen = Screen.VERSION_PICKER },
                             onOpenFiles = { screen = Screen.MODS },
                             onEditProfile = { screen = Screen.ACCOUNT },
+                            onOpenSettings = { screen = Screen.SETTINGS },
                             onPlay = {
                                 val version = selectedVersion
                                 val service = clientService
@@ -118,14 +122,18 @@ class MainActivity : ComponentActivity() {
                                         playerName = account.playerName,
                                         uuid = account.uuid,
                                         accessToken = account.accessToken,
-                                        versionId = version.id
+                                        versionId = version.id,
+                                        ramMinMb = settingsViewModel.settings.ramMinMb,
+                                        ramMaxMb = settingsViewModel.settings.ramMaxMb,
+                                        extraJvmArgs = settingsViewModel.settings.extraJvmArgs
+                                            .split(" ").filter { it.isNotBlank() }
                                     )
                                     screen = Screen.LAUNCH
                                     launchViewModel.start(
                                         clientService = service,
                                         profile = profile,
-                                        javaMajor = 17,
-                                        rendererJvmArg = "-Dorg.lwjgl.opengl.libname=libgl4es.so"
+                                        javaMajor = settingsViewModel.settings.javaMajor,
+                                        rendererJvmArg = settingsViewModel.settings.renderer.jvmArg
                                     )
                                 }
                             }
@@ -178,6 +186,11 @@ class MainActivity : ComponentActivity() {
                             screen = Screen.MODS
                         }
                     }
+
+                    Screen.SETTINGS -> SettingsScreen(
+                        xRoot = xRoot,
+                        onBack = { screen = Screen.HOME }
+                    )
                 }
             }
         }
