@@ -27,18 +27,15 @@ jobs:
 
       - name: Generate Gradle wrapper
         run: gradle wrapper --gradle-version 8.7
-        working-directory: XLauncher
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
-        working-directory: XLauncher
 
       - name: Build debug APK
         run: ./gradlew :XL:assembleDebug --stacktrace
-        working-directory: XLauncher
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: X-launcher-debug-apk
-          path: XLauncher/XL/build/outputs/apk/debug/*.apk
+          path: XL/build/outputs/apk/debug/*.apk
